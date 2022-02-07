@@ -3,28 +3,43 @@ import terminalImage from 'terminal-image';
 
 const { createCanvas } = canvas;
 
-let grid = [
-  [0, 0, 0],
-  [0, 0, 0],
-  [0, 0, 0],
-];
+const gridSize = 255;
+let grid = Array.from({ length: gridSize }, () => Array.from({ length: gridSize }, () => 0));
 
-const createSandPile = (startingHeight) => {
-  grid[1][1] = startingHeight;
+const randomNormal = () => {
+  let u = 0;
+  let v = 0;
+  while (u === 0) u = Math.random(); //Converting [0,1) to (0,1)
+  while (v === 0) v = Math.random();
+  let num = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+  num = num / 10.0 + 0.5; // Translate to 0 -> 1
+  if (num > 1 || num < 0) return randomNormal(); // resample between 0 and 1
+  return num;
 };
 
-const addBoarder = (grid) => {
-  const newGrid = [Array.from({ length: grid[0].length + 2 }).map(() => 0)];
-  grid.forEach((row) => {
-    newGrid.push([0, ...row, 0]);
-  });
-  newGrid.push(Array.from({ length: grid[0].length + 2 }).map(() => 0));
-  return newGrid;
+const colors = ['#000', '#ffdd00', '#ff6200', '#ff2f00'];
+const canvasScaleFactor = 10;
+
+const changeCell = (x, y, value, ctx) => {
+  grid[x][y] = value;
+
+  if (colors[value]) {
+    ctx.fillStyle = colors[value];
+  } else {
+    ctx.fillStyle = '#e527dc';
+  }
+  ctx.beginPath();
+  ctx.arc(
+    y * canvasScaleFactor + canvasScaleFactor / 2,
+    x * canvasScaleFactor + canvasScaleFactor / 2,
+    canvasScaleFactor / 2,
+    0,
+    2 * Math.PI
+  );
+  ctx.fill();
 };
 
-const resolveSandPile = (grid) => {
-  let newGrid = grid.map((row) => row.slice());
-
+const resolveSandPile = (grid, ctx) => {
   let rowIndex = 0;
   let cellIndex = 0;
   const indexes = Array.from({ length: grid.length * grid[0].length })
@@ -38,58 +53,43 @@ const resolveSandPile = (grid) => {
     if (cell > 3) {
       if (
         [
-          newGrid[rowIndex - 1]?.[cellIndex],
-          newGrid[rowIndex + 1]?.[cellIndex],
-          newGrid[rowIndex]?.[cellIndex - 1],
-          newGrid[rowIndex]?.[cellIndex + 1],
+          grid[rowIndex - 1]?.[cellIndex],
+          grid[rowIndex + 1]?.[cellIndex],
+          grid[rowIndex]?.[cellIndex - 1],
+          grid[rowIndex]?.[cellIndex + 1],
         ].some((cell) => cell == null)
       ) {
-        newGrid = addBoarder(newGrid);
-        rowIndex += 1;
-        cellIndex += 1;
+        return;
       }
-
-      newGrid[rowIndex][cellIndex] = cell % 4;
-      newGrid[rowIndex - 1][cellIndex] += Math.floor(cell / 4);
-      newGrid[rowIndex + 1][cellIndex] += Math.floor(cell / 4);
-      newGrid[rowIndex][cellIndex - 1] += Math.floor(cell / 4);
-      newGrid[rowIndex][cellIndex + 1] += Math.floor(cell / 4);
+      changeCell(rowIndex, cellIndex, cell % 4, ctx);
+      changeCell(rowIndex - 1, cellIndex, grid[rowIndex - 1][cellIndex] + Math.floor(cell / 4), ctx);
+      changeCell(rowIndex + 1, cellIndex, grid[rowIndex + 1][cellIndex] + Math.floor(cell / 4), ctx);
+      changeCell(rowIndex, cellIndex - 1, grid[rowIndex][cellIndex - 1] + Math.floor(cell / 4), ctx);
+      changeCell(rowIndex, cellIndex + 1, grid[rowIndex][cellIndex + 1] + Math.floor(cell / 4), ctx);
     }
   });
-  return newGrid;
+  return grid;
 };
 
 const needsResolve = (grid) => grid.some((row) => row.some((cell) => cell > 3));
 
-const colors = ['#000', '#ffdd00', '#ff6200', '#ff2f00'];
-
-const drawCanvas = (grid) => {
-  const canvas = createCanvas(grid[0].length * 10, grid.length * 10);
-  const ctx = canvas.getContext('2d');
-
-  grid.forEach((row, rowIndex) => {
-    row.forEach((cell, cellIndex) => {
-      if (colors[cell]) {
-        ctx.fillStyle = colors[cell];
-      } else {
-        ctx.fillStyle = '#e527dc';
-      }
-      ctx.beginPath();
-      ctx.arc(cellIndex * 10 + 5, rowIndex * 10 + 5, 5, 0, 2 * Math.PI);
-      ctx.fill();
-    });
-  });
-
-  return canvas;
-};
-
 const main = async () => {
-  createSandPile(process.argv[2]);
-  while (needsResolve(grid)) {
-    grid = resolveSandPile(grid);
-    console.log(await terminalImage.buffer(drawCanvas(grid).toBuffer()));
+  const startingHeight = process.argv[2] || 10;
+  const canvas = createCanvas(grid[0].length * canvasScaleFactor, grid.length * canvasScaleFactor);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  for (let i = 0; i < startingHeight; i++) {
+    const x = Math.floor(randomNormal() * gridSize);
+    const y = Math.floor(randomNormal() * gridSize);
+    changeCell(x, y, grid[x][y] + 1, ctx);
+    while (needsResolve(grid)) {
+      resolveSandPile(grid, ctx);
+    }
+    if (i % 10 === 0) {
+      console.log(await terminalImage.buffer(canvas.toBuffer()));
+    }
   }
-  // console.log(await terminalImage.buffer(drawCanvas(grid).toBuffer()));
 };
 
 main();
