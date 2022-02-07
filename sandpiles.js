@@ -9,6 +9,10 @@ let grid = [
   [0, 0, 0],
 ];
 
+const createSandPile = (startingHeight) => {
+  grid[1][1] = startingHeight;
+};
+
 const addBoarder = (grid) => {
   const newGrid = [Array.from({ length: grid[0].length + 2 }).map(() => 0)];
   grid.forEach((row) => {
@@ -18,48 +22,46 @@ const addBoarder = (grid) => {
   return newGrid;
 };
 
-const createSandPile = (startingHeight) => {
-  grid[1][1] = startingHeight;
-};
-
 const resolveSandPile = (grid) => {
   let newGrid = grid.map((row) => row.slice());
 
   let rowIndex = 0;
   let cellIndex = 0;
+  const indexes = Array.from({ length: grid.length * grid[0].length })
+    .map((_, i) => [i % grid.length, Math.floor(i / grid.length)])
+    .sort(() => Math.random() - 0.5);
 
-  grid.forEach((row, currentRowIndex) => {
-    row.forEach((cell, currentCellIndex) => {
-      rowIndex = currentRowIndex;
-      cellIndex = currentCellIndex;
-      if (cell > 3) {
-        if (
-          [
-            newGrid[rowIndex - 1]?.[cellIndex],
-            newGrid[rowIndex + 1]?.[cellIndex],
-            newGrid[rowIndex]?.[cellIndex - 1],
-            newGrid[rowIndex]?.[cellIndex + 1],
-          ].some((cell) => cell == null)
-        ) {
-          newGrid = addBoarder(newGrid);
-          rowIndex += 1;
-          cellIndex += 1;
-        }
-
-        newGrid[rowIndex][cellIndex] = cell % 4;
-        newGrid[rowIndex - 1][cellIndex] += Math.floor(cell / 4);
-        newGrid[rowIndex + 1][cellIndex] += Math.floor(cell / 4);
-        newGrid[rowIndex][cellIndex - 1] += Math.floor(cell / 4);
-        newGrid[rowIndex][cellIndex + 1] += Math.floor(cell / 4);
+  indexes.forEach(([currentRowIndex, currentCellIndex]) => {
+    rowIndex = currentRowIndex;
+    cellIndex = currentCellIndex;
+    const cell = grid[rowIndex][cellIndex];
+    if (cell > 3) {
+      if (
+        [
+          newGrid[rowIndex - 1]?.[cellIndex],
+          newGrid[rowIndex + 1]?.[cellIndex],
+          newGrid[rowIndex]?.[cellIndex - 1],
+          newGrid[rowIndex]?.[cellIndex + 1],
+        ].some((cell) => cell == null)
+      ) {
+        newGrid = addBoarder(newGrid);
+        rowIndex += 1;
+        cellIndex += 1;
       }
-    });
+
+      newGrid[rowIndex][cellIndex] = cell % 4;
+      newGrid[rowIndex - 1][cellIndex] += Math.floor(cell / 4);
+      newGrid[rowIndex + 1][cellIndex] += Math.floor(cell / 4);
+      newGrid[rowIndex][cellIndex - 1] += Math.floor(cell / 4);
+      newGrid[rowIndex][cellIndex + 1] += Math.floor(cell / 4);
+    }
   });
   return newGrid;
 };
 
 const needsResolve = (grid) => grid.some((row) => row.some((cell) => cell > 3));
 
-const colors = ['#000', '#FFB700FF', '#ff6200', '#ff2f00'];
+const colors = ['#000', '#ffdd00', '#ff6200', '#ff2f00'];
 
 const drawCanvas = (grid) => {
   const canvas = createCanvas(grid[0].length * 10, grid.length * 10);
@@ -67,7 +69,11 @@ const drawCanvas = (grid) => {
 
   grid.forEach((row, rowIndex) => {
     row.forEach((cell, cellIndex) => {
-      ctx.fillStyle = colors[cell];
+      if (colors[cell]) {
+        ctx.fillStyle = colors[cell];
+      } else {
+        ctx.fillStyle = '#e527dc';
+      }
       ctx.beginPath();
       ctx.arc(cellIndex * 10 + 5, rowIndex * 10 + 5, 5, 0, 2 * Math.PI);
       ctx.fill();
@@ -83,7 +89,7 @@ const main = async () => {
     grid = resolveSandPile(grid);
     console.log(await terminalImage.buffer(drawCanvas(grid).toBuffer()));
   }
-  // drawCanvas(grid).createPNGStream().pipe(process.stdout);
+  // console.log(await terminalImage.buffer(drawCanvas(grid).toBuffer()));
 };
 
 main();
