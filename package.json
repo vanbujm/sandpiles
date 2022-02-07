@@ -4,6 +4,7 @@
   "main": "index.js",
   "author": "Jonathan Van Buren <vanbujm@gmail.com>",
   "license": "MIT",
+  "type": "module",
   "scripts": {
     "test": "jest"
   },
@@ -17,6 +18,8 @@
     "prettier": "^2.5.1"
   },
   "dependencies": {
-    "canvas": "^2.9.0"
+    "canvas": "^2.9.0",
+    "gifencoder": "^2.0.1",
+    "terminal-image": "^2.0.0"
   }
 }
